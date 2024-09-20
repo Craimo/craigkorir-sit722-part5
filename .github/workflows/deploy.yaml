@@ -1,0 +1,126 @@
+name: Deploy Infrastructure and Microservices
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      registry_hostname: ${{ steps.terraform_output.outputs.registry_hostname }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: terraform init
+        
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="app_name=${{ vars.APP_NAME }}" \
+            -var="location=${{ vars.AZURE_LOCATION }}" \
+            -var="kubernetes_version=${{ vars.KUBERNETES_VERSION }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        id: terraform_output
+        run: |
+          echo "registry_hostname=$(terraform output -raw registry_hostname)" >> $GITHUB_OUTPUT
+          echo "REGISTRY_UN=$(terraform output -raw registry_un)" >> $GITHUB_ENV
+          echo "REGISTRY_PW=$(terraform output -raw registry_pw)" >> $GITHUB_ENV
+
+      - name: Get AKS Credentials
+        run: az aks get-credentials --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} --name ${{ vars.APP_NAME }}
+
+  deploy-book-catalog:
+    needs: terraform
+    runs-on: ubuntu-latest
+    
+    env:
+      VERSION: ${{ github.sha }}
+      REGISTRY_HOSTNAME: ${{ needs.terraform.outputs.registry_hostname }}
+      SERVICE_NAME: book_catalog
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and push image to ACR
+        env:
+          REGISTRY_UN: ${{ env.REGISTRY_UN }}
+          REGISTRY_PW: ${{ env.REGISTRY_PW }}
+        run: |
+          echo $REGISTRY_PW | docker login $REGISTRY_HOSTNAME -u $REGISTRY_UN --password-stdin
+          docker build -t ${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }} -f ./book_catalog/Dockerfile .
+          docker push ${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
+      
+      - name: Set AKS context
+        uses: azure/aks-set-context@v1
+        with:
+          creds: '${{ secrets.AZURE_CREDENTIALS }}'
+          resource-group: '${{ vars.AZURE_RESOURCE_GROUP }}'
+          cluster-name: '${{ vars.APP_NAME }}'
+        
+      - name: Deploy to AKS
+        run: |
+          sed -i 's|{{IMAGE_NAME}}|${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}|g' ./kubernetes/book-catalog-deployment.yaml
+          kubectl apply -f /scripts/kubernetes/book-catalog-deployment.yaml
+
+  deploy-inventory-management:
+    needs: terraform
+    runs-on: ubuntu-latest
+    
+    env:
+      VERSION: ${{ github.sha }}
+      REGISTRY_HOSTNAME: ${{ needs.terraform.outputs.registry_hostname }}
+      SERVICE_NAME: inventory_management
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and push image to ACR
+        env:
+          REGISTRY_UN: ${{ env.REGISTRY_UN }}
+          REGISTRY_PW: ${{ env.REGISTRY_PW }}
+        run: |
+          echo $REGISTRY_PW | docker login $REGISTRY_HOSTNAME -u $REGISTRY_UN --password-stdin
+          docker build -t ${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }} -f scripts/inventory_management/Dockerfile .
+          docker push ${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
+      
+      - name: Set AKS context
+        uses: azure/aks-set-context@v1
+        with:
+          creds: '${{ secrets.AZURE_CREDENTIALS }}'
+          resource-group: '${{ vars.AZURE_RESOURCE_GROUP }}'
+          cluster-name: '${{ vars.APP_NAME }}'
+        
+      - name: Deploy to AKS
+        run: |
+          sed -i 's|{{IMAGE_NAME}}|${{ env.REGISTRY_HOSTNAME }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}|g' scripts/kubernetes/inventory-management-deployment.yaml
+          kubectl apply -f scripts/kubernetes/inventory-management-deployment.yaml
+          # add service yaml file

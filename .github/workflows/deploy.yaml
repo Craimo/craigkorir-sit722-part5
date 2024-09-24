@@ -1,3 +1,5 @@
+Updated GitHub Actions Workflow for Microservices
+
 name: Deploy Microservices
 
 on:
@@ -21,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Terraform Setup and Apply
+      # Terraform Setup
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -29,14 +31,14 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./scripts/tera   
+        working-directory: ./scripts/tera
 
-            # Terraform Apply with improved visibility and error handling
+      # Terraform Apply with improved visibility and error handling
       - name: Terraform Apply
         id: apply
         run: |
           echo "Starting Terraform Apply..."
-          terraform apply -auto-approve tfplan &
+          terraform apply -auto-approve &
           apply_pid=$!
           
           while kill -0 $apply_pid 2>/dev/null; do

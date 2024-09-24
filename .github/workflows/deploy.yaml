@@ -30,13 +30,13 @@ jobs:
       # Terraform Init
       - name: Terraform Init
         run: terraform init
-        working-directory: /scripts/tera  # Ensure this points to your Terraform directory
+        working-directory: ../scripts/tera  # Ensure this points to your Terraform directory
 
       # Terraform Apply
       - name: Terraform Apply
         id: apply
         run: terraform apply -auto-approve
-        working-directory: /scripts/tera  # Ensure this points to your Terraform directory
+        working-directory: ../scripts/tera  # Ensure this points to your Terraform directory
         env:
           ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}

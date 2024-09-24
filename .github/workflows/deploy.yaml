@@ -1,76 +1,67 @@
-name: Deploy Microservices
-
-on:
-  push: 
-    branches:
-      - main
-  workflow_dispatch: 
-
 jobs:
   deploy-book-catalog:
     runs-on: ubuntu-latest
-    
+
     env:
       VERSION: ${{ github.sha }}
-      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
-      REGISTRY_UN: ${{ secrets.REGISTRY_UN }}
-      REGISTRY_PW: ${{ secrets.REGISTRY_PW }}
       SERVICE_NAME: book_catalog
 
     steps:
       - uses: actions/checkout@v3
 
+      # Terraform Setup
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: /scripts/tera  # Update this to your Terraform directory
+
+      - name: Terraform Apply
+        id: apply
+        run: |
+          terraform apply -auto-approve
+        working-directory: /scripts/tera  # Update this to your Terraform directory
+
+      # Get Terraform Outputs
+      - name: Get ACR Credentials
+        id: outputs
+        run: |
+          echo "##[set-output name=registry_hostname;]$(terraform output -raw registry_hostname)"
+          echo "##[set-output name=registry_un;]$(terraform output -raw registry_un)"
+          echo "##[set-output name=registry_pw;]$(terraform output -raw registry_pw)"
+        working-directory: ./path/to/terraform/files  # Update this to your Terraform directory
+
+      # Set Registry Credentials as Environment Variables
+      - name: Set Registry Credentials
+        run: |
+          echo "CONTAINER_REGISTRY=${{ steps.outputs.outputs.registry_hostname }}" >> $GITHUB_ENV
+          echo "REGISTRY_UN=${{ steps.outputs.outputs.registry_un }}" >> $GITHUB_ENV
+          echo "REGISTRY_PW=${{ steps.outputs.outputs.registry_pw }}" >> $GITHUB_ENV
+
+      # Build Docker Image
       - name: Build
         run: ./scripts/build-image.sh
         env:
           DOCKERFILE_PATH: ./book_catalog/Dockerfile
           IMAGE_NAME: ${{ env.CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
 
+      # Publish Docker Image
       - name: Publish
         run: ./scripts/push-image.sh
         env:
           IMAGE_NAME: ${{ env.CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
+          REGISTRY_UN: ${{ env.REGISTRY_UN }}
+          REGISTRY_PW: ${{ env.REGISTRY_PW }}
 
+      # Kubernetes Deployment
       - uses: tale/kubectl-action@v1
         with:
           base64-kube-config: ${{ secrets.KUBE_CONFIG }}
           kubectl-version: v1.24.2
-      
-      - name: Deploy
-        run: ./scripts/deploy.sh
-        env:
-          IMAGE_NAME: ${{ env.CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-  deploy-inventory-management:
-    runs-on: ubuntu-latest
-    
-    env:
-      VERSION: ${{ github.sha }}
-      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
-      REGISTRY_UN: ${{ secrets.REGISTRY_UN }}
-      REGISTRY_PW: ${{ secrets.REGISTRY_PW }}
-      SERVICE_NAME: inventory_management
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Build
-        run: ./scripts/build-image.sh
-        env:
-          DOCKERFILE_PATH: ./inventory_management/Dockerfile
-          IMAGE_NAME: ${{ env.CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
-
-      - name: Publish
-        run: ./scripts/push-image.sh
-        env:
-          IMAGE_NAME: ${{ env.CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.VERSION }}
-
-      - uses: tale/kubectl-action@v1
-        with:
-          base64-kube-config: ${{ secrets.KUBE_CONFIG }}
-          kubectl-version: v1.24.2
-      
       - name: Deploy
         run: ./scripts/deploy.sh
         env:

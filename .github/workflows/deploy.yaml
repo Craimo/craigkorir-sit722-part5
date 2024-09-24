@@ -31,15 +31,15 @@ jobs:
         run: terraform init
         working-directory: ./scripts/tera
 
-      - name: Terraform Apply
-        id: apply
-        run: terraform apply -auto-approve
-        working-directory: ./scripts/tera
-        env:
-          ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      # - name: Terraform Apply
+      #   id: apply
+      #   run: terraform apply -auto-approve
+      #   working-directory: ./scripts/tera
+      #   env:
+      #     ARM_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+      #     ARM_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
+      #     ARM_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
+      #     ARM_SUBSCRIPTION_ID: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
 
             # Terraform Apply with improved visibility and error handling

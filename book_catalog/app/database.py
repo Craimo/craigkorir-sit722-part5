@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # SQLALCHEMY_DATABASE_URL = "postgresql://admin:E5OJuKRE14iotwfsvHwJeqsjaKK1eKmO@dpg-cq0nb2aju9rs73b0500g-a.oregon-postgres.render.com/part2" #os.getenv("DATABASE_URL")
-SQLALCHEMY_DATABASE_URL ="postgresql://ckorir_zxa5_user:vdw07HOB6rNDuONtXiA16GDOIrgIq7sd@postgres/ckorir_zxa5"
+SQLALCHEMY_DATABASE_URL ="postgresql://ckorir_zxa5_user:vdw07HOB6rNDuONtXiA16GDOIrgIq7sd@dpg-crm01e5umphs73eemv60-a.oregon-postgres.render.com/ckorir_zxa5"
 # SQLALCHEMY_DATABASE_URL=os.getenv("DATABASE_URL")
 
 

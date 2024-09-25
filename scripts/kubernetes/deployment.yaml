@@ -1,3 +1,4 @@
+# Your Solution
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -15,13 +16,13 @@ spec:
     spec:
       containers:
       - name: book-catalog
-        image: $CONTAINER_REGISTRY/book_catalog:$VERSION
+        image:  $CONTAINER_REGISTRY/book_catalog:$VERSION
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
         - name: DATABASE_URL
-          value: postgresql://ckorir_zxa5_user:vdw07HOB6rNDuONtXiA16GDOIrgIq7sd@postgres-service/ckorir_zxa5
+          value: $DATABASE_URL
 
 ---
 apiVersion: apps/v1
@@ -40,45 +41,10 @@ spec:
     spec:
       containers:
       - name: inventory-management
-        image: $CONTAINER_REGISTRY/inventory_management:$VERSION
+        image:  $CONTAINER_REGISTRY/inventory_management:$VERSION
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
         - name: DATABASE_URL
-          value: postgresql://ckorir_zxa5_user:vdw07HOB6rNDuONtXiA16GDOIrgIq7sd@postgres-service/ckorir_zxa5
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres-deployment
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-      - name: postgres
-        image: postgres:13-alpine
-        ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_DB
-          value: ckorir_zxa5
-        - name: POSTGRES_USER
-          value: ckorir_zxa5_user
-        - name: POSTGRES_PASSWORD
-          value: vdw07HOB6rNDuONtXiA16GDOIrgIq7sd
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-      volumes:
-      - name: postgres-storage
-        emptyDir: {}
-
+          value: $DATABASE_URL
